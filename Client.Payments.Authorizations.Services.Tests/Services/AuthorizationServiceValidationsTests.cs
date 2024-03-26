@@ -183,4 +183,51 @@ public class AuthorizationServiceValidationsTests
         Assert.AreEqual(ResultCodeEnum.UnprocessableEntity, tupleResult.Item2.ResultCode);
         Assert.AreEqual("Authorization already confirmed.", tupleResult.Item2.ErrorMsg);
     }
+
+    [TestMethod]
+    public async Task WhenValidateNotExpiredAuthorization_WithAuthorizationNotExpired_ThenTrueResult()
+    {
+        // Arrange
+        Models.Authorization authorization = new Models.Authorization()
+        {
+            Id = Guid.NewGuid(),
+            CreatedDate = DateTime.Now
+        };
+
+        // Act
+        var tupleResult = await _authorizationService.ValidateNotExpiredAuthorization(authorization);
+
+        // Assert
+        Assert.IsNotNull(tupleResult);
+        Assert.IsInstanceOfType(tupleResult, typeof(ValueTuple<bool, ConfirmAuthorizationResult>));
+        Assert.IsTrue(tupleResult.Item1);
+
+        Assert.IsNull(tupleResult.Item2);
+    }
+
+    [TestMethod]
+    public async Task WhenValidateNotExpiredAuthorization_WithAuthorizationExpired_ThenFalseResult()
+    {
+        // Arrange
+        int confirmMinutes = int.Parse(_config["SetConfirmMinutes"]);
+
+        Models.Authorization authorization = new Models.Authorization()
+        {
+            Id = Guid.NewGuid(),
+            CreatedDate = DateTime.Now.AddMinutes(-confirmMinutes)
+        };
+
+        // Act
+        var tupleResult = await _authorizationService.ValidateNotExpiredAuthorization(authorization);
+
+        // Assert
+        Assert.IsNotNull(tupleResult);
+        Assert.IsInstanceOfType(tupleResult, typeof(ValueTuple<bool, ConfirmAuthorizationResult>));
+        Assert.IsFalse(tupleResult.Item1);
+
+        Assert.IsNotNull(tupleResult.Item2);
+        Assert.AreEqual(authorization.Id, tupleResult.Item2.AuthorizationId);
+        Assert.AreEqual(ResultCodeEnum.UnprocessableEntity, tupleResult.Item2.ResultCode);
+        Assert.AreEqual("Expired Confirmation Time.", tupleResult.Item2.ErrorMsg);
+    }
 }
